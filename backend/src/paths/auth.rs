@@ -26,12 +26,14 @@ pub struct AuthResponse {
 #[derive(Serialize, Deserialize)]
 struct Claims {
     sub: String,
+    admin: String, 
     exp: usize,
 }
 
 #[derive(sqlx::FromRow)]
 struct UserRow {
     password_hash: String,
+    admin: String,
 }
 
 pub fn router() -> Router<Arc<AppState>> {
@@ -52,10 +54,11 @@ async fn register(
         .to_string();
 
     sqlx::query::<sqlx::Postgres>(
-        "INSERT INTO users (username, password_hash) VALUES ($1, $2)"
+        "INSERT INTO users (username, password_hash, admin) VALUES ($1, $2, $3)"
     )
     .bind(&payload.username)
     .bind(&password_hash)
+    .bind("no") 
     .execute(&state.db)
     .await
     .map_err(|e| {
@@ -71,7 +74,7 @@ async fn login(
     Json(payload): Json<AuthPayload>,
 ) -> Result<Json<AuthResponse>, StatusCode> {
     let user = sqlx::query_as::<sqlx::Postgres, UserRow>(
-        "SELECT password_hash FROM users WHERE username = $1"
+        "SELECT password_hash, admin FROM users WHERE username = $1"
     )
     .bind(&payload.username)
     .fetch_one(&state.db)
@@ -91,6 +94,7 @@ async fn login(
     let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "default_secret".into());
     let claims = Claims {
         sub: payload.username,
+        admin: user.admin,
         exp: 2000000000, 
     };
 
