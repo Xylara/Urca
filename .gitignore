@@ -1,4 +1,7 @@
 backend/target
 backend/target/Cargo.lock
 backend/.env
+backend/pulse.key
+
 frontend/node_modules
+frontend/.env
