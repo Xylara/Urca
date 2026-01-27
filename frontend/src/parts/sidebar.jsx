@@ -57,15 +57,14 @@ const Sidebar = () => {
         {userUuid && (
           <div className="relative group flex items-center">
             <button 
-              onClick={() => navigate("/profile")}
+              onClick={() => navigate("/account")}
               className="flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 hover:ring-2 hover:ring-zinc-200 overflow-hidden"
             >
               <img 
                 src={pfpUrl} 
-                alt="Profile" 
+                alt="Account" 
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  // Fallback if image fails to load
                   e.target.src = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
                 }}
               />
