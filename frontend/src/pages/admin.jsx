@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import Sidebar from '../parts/sidebar';
+import AdminSidebar from '../parts/AdminSidebar';
 
 const Admin = () => {
   const [userStats, setUserStats] = useState({ total_users: 0 });
@@ -50,7 +51,7 @@ const Admin = () => {
 
   return (
     <div className="flex min-h-screen bg-zinc-50 font-sans">
-      <Sidebar />
+      <AdminSidebar />
       <main className="flex-1 p-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm">
