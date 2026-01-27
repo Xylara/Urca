@@ -39,10 +39,8 @@ const Sidebar = () => {
               </svg>
             </button>
 
-            {/* Tooltip */}
             <span className="absolute left-full ml-4 px-3 py-1.5 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-xl">
               Admin Panel
-              {/* Tooltip Arrow */}
               <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-zinc-900 rotate-45"></div>
             </span>
           </div>
