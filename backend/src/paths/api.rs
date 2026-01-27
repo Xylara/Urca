@@ -17,10 +17,17 @@ pub struct UserCountResponse {
     pub total_users: i64,
 }
 
+#[derive(Serialize)]
+pub struct HealthResponse {
+    pub status: String,
+    pub database: String,
+}
+
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/version", get(get_version))
         .route("/users", get(get_user_count))
+        .route("/health", get(get_health))
 }
 
 async fn get_version() -> Json<VersionResponse> {
@@ -35,12 +42,23 @@ async fn get_user_count(
     let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
         .fetch_one(&state.db)
         .await
-        .map_err(|e| {
-            eprintln!("Database error: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(UserCountResponse {
         total_users: row.0,
     }))
+}
+
+async fn get_health(
+    State(state): State<Arc<AppState>>,
+) -> Json<HealthResponse> {
+    let db_status = match sqlx::query("SELECT 1").execute(&state.db).await {
+        Ok(_) => "up",
+        Err(_) => "down",
+    };
+
+    Json(HealthResponse {
+        status: "up".to_string(),
+        database: db_status.to_string(),
+    })
 }
