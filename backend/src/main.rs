@@ -1,57 +1,61 @@
 mod paths;
 mod middleware;
 
-use axum::{
-    middleware::from_fn_with_state,
-    http::{header, Method},
-    Router,
-};
+use axum::{middleware::from_fn_with_state, http::{header, Method}, Router};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use std::sync::Arc;
-use std::{env, fs};
+use std::{env, fs, time::{SystemTime, UNIX_EPOCH}};
 use tower_http::cors::CorsLayer;
+use aws_sdk_s3::{config::{Credentials, Region}, Client as S3Client};
 
 pub struct AppState {
     pub db: PgPool,
     pub api_key: String,
+    pub s3: S3Client,
+    pub bucket: String,
 }
 
 fn get_or_create_pulse_key() -> String {
     let file_path = "pulse.key";
-    
     if let Ok(existing_key) = fs::read_to_string(file_path) {
         return existing_key.trim().to_string();
     }
-
     let new_key = format!("{:x}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos());
-    
     fs::write(file_path, &new_key).expect("Unable to write pulse.key");
-    println!("First time Launching pulse?");
-    println!("Heres your API key {}", new_key);
-    println!("Thanks for using Pulse!");
-    
     new_key
 }
-
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
     
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    
+    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL missing");
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(&db_url)
         .await
-        .expect("Failed to connect to Database");
+        .expect("Failed to connect to DB");
 
-    let api_key = get_or_create_pulse_key();
+    let s3_creds = Credentials::new(
+        env::var("STORAGE_ACCESS_KEY").expect("ACCESS_KEY missing"),
+        env::var("STORAGE_SECRET_KEY").expect("SECRET_KEY missing"),
+        None, None, "env"
+    );
+
+    let s3_conf = aws_sdk_s3::Config::builder()
+        .behavior_version(aws_sdk_s3::config::BehaviorVersion::latest())
+        .endpoint_url(env::var("STORAGE_ENDPOINT").expect("ENDPOINT missing"))
+        .region(Region::new(env::var("STORAGE_REGION").expect("REGION missing")))
+        .credentials_provider(s3_creds)
+        .force_path_style(true)
+        .build();
+
     let shared_state = Arc::new(AppState { 
         db: pool,
-        api_key 
+        api_key: get_or_create_pulse_key(),
+        s3: S3Client::from_conf(s3_conf),
+        bucket: env::var("STORAGE_BUCKET").expect("BUCKET missing"),
     });
 
     let cors = CorsLayer::new()
@@ -70,8 +74,7 @@ async fn main() {
         .layer(cors) 
         .with_state(shared_state);
 
+    println!("Pulse Backend running on http://0.0.0.0:7000");
     let listener = tokio::net::TcpListener::bind("0.0.0.0:7000").await.unwrap();
-    println!("Backend Started on http://localhost:7000");
-    
     axum::serve(listener, app).await.unwrap();
 }

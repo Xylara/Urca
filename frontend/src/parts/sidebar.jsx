@@ -6,26 +6,35 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
   let admin = false;
+  let userUuid = null;
 
   if (token) {
     try {
       const decoded = jwtDecode(token);
       admin = decoded.admin === "yes";
+      // Assuming your JWT claims include the user's UUID as 'uuid' or 'id'
+      // Adjust 'decoded.uuid' to match your actual JWT payload structure
+      userUuid = decoded.uuid || decoded.sub; 
     } catch (error) {
       console.error("Invalid token");
     }
   }
 
+  // Use the backend route we just created to fetch the image
+  const pfpUrl = userUuid 
+    ? `https://your-api-domain.com/api/user/${userUuid}/pfp` 
+    : null;
+
   return (
     <aside className="w-20 flex-shrink-0 min-h-screen bg-white border-r border-zinc-200 flex flex-col items-center">      
       <nav className="flex-1"></nav>
 
-      <div className="pb-8 px-2">
+      <div className="pb-8 px-2 flex flex-col gap-4">
         {admin && (
           <div className="relative group flex items-center">
             <button 
               onClick={() => navigate("/admin")}
-              className="flex flex-col items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 hover:bg-zinc-100 border border-transparent hover:border-zinc-200"
+              className="flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 hover:bg-zinc-100 border border-transparent hover:border-zinc-200"
             >
               <svg 
                 xmlns="http://www.w3.org/2000/svg" 
@@ -38,9 +47,31 @@ const Sidebar = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
               </svg>
             </button>
-
             <span className="absolute left-full ml-4 px-3 py-1.5 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-xl">
               Admin Panel
+              <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-zinc-900 rotate-45"></div>
+            </span>
+          </div>
+        )}
+
+        {userUuid && (
+          <div className="relative group flex items-center">
+            <button 
+              onClick={() => navigate("/profile")}
+              className="flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 hover:ring-2 hover:ring-zinc-200 overflow-hidden"
+            >
+              <img 
+                src={pfpUrl} 
+                alt="Profile" 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Fallback if image fails to load
+                  e.target.src = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
+                }}
+              />
+            </button>
+            <span className="absolute left-full ml-4 px-3 py-1.5 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-xl">
+              Profile
               <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-zinc-900 rotate-45"></div>
             </span>
           </div>
