@@ -4,6 +4,7 @@ import AuthPage from './pages/auth';
 import Dashboard from './pages/dash';
 import Admin from './pages/admin';
 import AdminUsers from './pages/AdminUsers';
+import Profile from './pages/profile';
 
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/account/profile" element={<Profile />} />
       </Routes>
     </Router>
   );

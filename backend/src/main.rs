@@ -7,7 +7,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use std::{env, fs, time::{SystemTime, UNIX_EPOCH}};
 use tower_http::cors::CorsLayer;
-use aws_sdk_s3::{config::{Credentials, Region}, Client as S3Client};
+use aws_sdk_s3::{config::{Credentials, Region, BehaviorVersion}, Client as S3Client};
 
 pub struct AppState {
     pub db: PgPool,
@@ -40,11 +40,13 @@ async fn main() {
     let s3_creds = Credentials::new(
         env::var("STORAGE_ACCESS_KEY").expect("ACCESS_KEY missing"),
         env::var("STORAGE_SECRET_KEY").expect("SECRET_KEY missing"),
-        None, None, "env"
+        None, 
+        None, 
+        "static"
     );
 
     let s3_conf = aws_sdk_s3::Config::builder()
-        .behavior_version(aws_sdk_s3::config::BehaviorVersion::latest())
+        .behavior_version(BehaviorVersion::latest())
         .endpoint_url(env::var("STORAGE_ENDPOINT").expect("ENDPOINT missing"))
         .region(Region::new(env::var("STORAGE_REGION").expect("REGION missing")))
         .credentials_provider(s3_creds)
@@ -59,7 +61,10 @@ async fn main() {
     });
 
     let cors = CorsLayer::new()
-        .allow_origin(["https://7001.hyghj.eu.org".parse().unwrap()]) 
+        .allow_origin([
+            "https://7001.hyghj.eu.org".parse().unwrap(),
+            "http://localhost:5173".parse().unwrap()
+        ]) 
         .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
         .allow_headers([
             header::CONTENT_TYPE, 

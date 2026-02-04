@@ -12,17 +12,14 @@ const Sidebar = () => {
     try {
       const decoded = jwtDecode(token);
       admin = decoded.admin === "yes";
-      // Assuming your JWT claims include the user's UUID as 'uuid' or 'id'
-      // Adjust 'decoded.uuid' to match your actual JWT payload structure
       userUuid = decoded.uuid || decoded.sub; 
     } catch (error) {
       console.error("Invalid token");
     }
   }
 
-  // Use the backend route we just created to fetch the image
   const pfpUrl = userUuid 
-    ? `https://your-api-domain.com/api/user/${userUuid}/pfp` 
+    ? `https://7000.hyghj.eu.org/api/user/${userUuid}/pfp` 
     : null;
 
   return (
@@ -57,7 +54,7 @@ const Sidebar = () => {
         {userUuid && (
           <div className="relative group flex items-center">
             <button 
-              onClick={() => navigate("/account")}
+              onClick={() => navigate("/account/profile")}
               className="flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 hover:ring-2 hover:ring-zinc-200 overflow-hidden"
             >
               <img 
@@ -65,7 +62,7 @@ const Sidebar = () => {
                 alt="Account" 
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  e.target.src = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
+                  e.target.src = "https://s3.tebi.io/main/default.png";
                 }}
               />
             </button>

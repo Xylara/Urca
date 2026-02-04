@@ -44,8 +44,8 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/health", get(get_health))
         .route("/users/list", get(list_users))
         .route("/users/update", patch(update_user))
-        .route("/user/:uuid/pfp", get(get_user_pfp))
-        .route("/user/:uuid/pfp/upload", post(upload_pfp))
+        .route("/user/:user_id/pfp", get(get_user_pfp))
+        .route("/user/:user_id/pfp/upload", post(upload_pfp))
 }
 
 fn check_auth(headers: &HeaderMap, state_key: &str) -> Result<(), StatusCode> {
@@ -103,10 +103,10 @@ async fn update_user(headers: HeaderMap, State(state): State<Arc<AppState>>, Jso
     Ok(StatusCode::OK)
 }
 
-async fn get_user_pfp(Path(user_uuid): Path<Uuid>, State(state): State<Arc<AppState>>) -> impl IntoResponse {
+async fn get_user_pfp(Path(user_id): Path<String>, State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let default = std::env::var("DEFAULT_PFP_URL").unwrap_or_default();
-    let row: Result<Option<String>, _> = sqlx::query_scalar::<sqlx::Postgres, String>("SELECT pfp_url FROM users WHERE id = $1")
-        .bind(user_uuid).fetch_optional(&state.db).await;
+    let row = sqlx::query_scalar::<sqlx::Postgres, String>("SELECT pfp_url FROM users WHERE id::text = $1 OR username = $1")
+        .bind(&user_id).fetch_optional(&state.db).await;
 
     match row {
         Ok(Some(url)) => Redirect::temporary(&url).into_response(),
@@ -114,21 +114,20 @@ async fn get_user_pfp(Path(user_uuid): Path<Uuid>, State(state): State<Arc<AppSt
     }
 }
 
-async fn upload_pfp(Path(user_uuid): Path<Uuid>, State(state): State<Arc<AppState>>, mut multipart: Multipart) -> Result<StatusCode, StatusCode> {
+async fn upload_pfp(Path(user_id): Path<String>, State(state): State<Arc<AppState>>, mut multipart: Multipart) -> Result<StatusCode, StatusCode> {
     while let Ok(Some(field)) = multipart.next_field().await {
-        let name = field.name().map(|n| n.to_string());
-        if name.as_deref() == Some("file") {
+        if field.name().as_deref() == Some("file") {
             let data = field.bytes().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-            let file_key = format!("profiles/{}.png", user_uuid);
+            let file_key = format!("profiles/{}.png", user_id);
 
             state.s3.put_object().bucket(&state.bucket).key(&file_key).body(ByteStream::from(data)).content_type("image/png").send().await
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-            let endpoint = std::env::var("STORAGE_ENDPOINT").unwrap();
+            let endpoint = std::env::var("STORAGE_ENDPOINT").unwrap_or_default();
             let new_url = format!("{}/{}/{}", endpoint, state.bucket, file_key);
 
-            sqlx::query::<sqlx::Postgres>("UPDATE users SET pfp_url = $1 WHERE id = $2")
-                .bind(new_url).bind(user_uuid).execute(&state.db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            sqlx::query::<sqlx::Postgres>("UPDATE users SET pfp_url = $1 WHERE id::text = $2 OR username = $2")
+                .bind(new_url).bind(&user_id).execute(&state.db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
             return Ok(StatusCode::OK);
         }
