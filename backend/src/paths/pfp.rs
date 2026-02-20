@@ -26,32 +26,36 @@ pub async fn get_user_pfp(
 }
 
 pub async fn upload_pfp(
-    user_id: Uuid,
+    Path(user_id): Path<String>,
     State(state): State<Arc<AppState>>,
     mut multipart: Multipart,
-) -> impl IntoResponse {
+) -> Result<StatusCode, StatusCode> {
     while let Ok(Some(field)) = multipart.next_field().await {
-        if field.name() == Some("file") {
-            let data = field.bytes().await.unwrap();
-            let filename = format!("{}.png", user_id);
+        if field.name().as_deref() == Some("file") {
+            let data = field.bytes().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let file_key = format!("profiles/{}.png", user_id);
 
-            let res = state.s3.put_object()
+            state.s3.put_object()
                 .bucket(&state.bucket)
-                .key(&filename)
+                .key(&file_key)
                 .body(ByteStream::from(data))
-                .acl(ObjectCannedAcl::PublicRead)
                 .content_type("image/png")
                 .send()
-                .await;
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-            if res.is_ok() {
-                let url = format!("https://s3.tebi.io/{}/{}", state.bucket, filename);
-                sqlx::query!("UPDATE users SET pfp_url = $1 WHERE id = $2", url, user_id)
-                    .execute(&state.db)
-                    .await.ok();
-                return StatusCode::OK.into_response();
-            }
+            let cdn_endpoint = std::env::var("CDN_ENDPOINT").unwrap_or_else(|_| "http://localhost:4000".to_string());
+            let new_url = format!("{}/{}", cdn_endpoint, file_key);
+
+            sqlx::query::<sqlx::Postgres>("UPDATE users SET pfp_url = $1 WHERE id::text = $2 OR username = $2")
+                .bind(new_url)
+                .bind(&user_id)
+                .execute(&state.db)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+            return Ok(StatusCode::OK);
         }
     }
-    StatusCode::BAD_REQUEST.into_response()
+    Err(StatusCode::BAD_REQUEST)
 }

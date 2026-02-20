@@ -5,7 +5,6 @@ use axum::{
     Router, http::{StatusCode, HeaderMap},
 };
 use axum_extra::extract::Multipart;
-use aws_sdk_s3::primitives::ByteStream;
 use serde::{Deserialize, Serialize};
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
@@ -44,7 +43,6 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/health", get(get_health))
         .route("/users/list", get(list_users))
         .route("/users/update", patch(update_user))
-        .route("/user/:user_id/pfp", get(get_user_pfp))
         .route("/user/:user_id/pfp/upload", post(upload_pfp))
 }
 
@@ -103,7 +101,7 @@ async fn update_user(headers: HeaderMap, State(state): State<Arc<AppState>>, Jso
     Ok(StatusCode::OK)
 }
 
-async fn get_user_pfp(Path(user_id): Path<String>, State(state): State<Arc<AppState>>) -> impl IntoResponse {
+pub async fn get_user_pfp(Path(user_id): Path<String>, State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let default = std::env::var("DEFAULT_PFP_URL").unwrap_or_default();
     let row = sqlx::query_scalar::<sqlx::Postgres, String>("SELECT pfp_url FROM users WHERE id::text = $1 OR username = $1")
         .bind(&user_id).fetch_optional(&state.db).await;
@@ -118,16 +116,35 @@ async fn upload_pfp(Path(user_id): Path<String>, State(state): State<Arc<AppStat
     while let Ok(Some(field)) = multipart.next_field().await {
         if field.name().as_deref() == Some("file") {
             let data = field.bytes().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-            let file_key = format!("profiles/{}.png", user_id);
 
-            state.s3.put_object().bucket(&state.bucket).key(&file_key).body(ByteStream::from(data)).content_type("image/png").send().await
+            let part = reqwest::multipart::Part::bytes(data.to_vec())
+                .file_name(format!("{}.png", user_id))
+                .mime_str("image/png")
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-            let endpoint = std::env::var("STORAGE_ENDPOINT").unwrap_or_default();
-            let new_url = format!("{}/{}/{}", endpoint, state.bucket, file_key);
+            let form = reqwest::multipart::Form::new().part("file", part);
+
+            let response = state.http
+                .post(format!("{}/upload?dir=profiles", state.nimbus_os_url))
+                .header("x-api-key", &state.nimbus_key)
+                .multipart(form)
+                .send()
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+            if !response.status().is_success() {
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+
+            let json: serde_json::Value = response.json().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let cdn_url = json["cdn_url"].as_str().ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
 
             sqlx::query::<sqlx::Postgres>("UPDATE users SET pfp_url = $1 WHERE id::text = $2 OR username = $2")
-                .bind(new_url).bind(&user_id).execute(&state.db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                .bind(cdn_url)
+                .bind(&user_id)
+                .execute(&state.db)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
             return Ok(StatusCode::OK);
         }
