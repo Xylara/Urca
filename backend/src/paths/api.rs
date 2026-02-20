@@ -117,15 +117,17 @@ async fn upload_pfp(Path(user_id): Path<String>, State(state): State<Arc<AppStat
         if field.name().as_deref() == Some("file") {
             let data = field.bytes().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+            let filename = format!("{}.png", user_id);
+
             let part = reqwest::multipart::Part::bytes(data.to_vec())
-                .file_name(format!("{}.png", user_id))
+                .file_name(filename.clone())
                 .mime_str("image/png")
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
             let form = reqwest::multipart::Form::new().part("file", part);
 
             let response = state.http
-                .post(format!("{}/upload?dir=profiles", state.nimbus_os_url))
+                .post(format!("{}/upload?dir=pfp&filename={}", state.nimbus_os_url, filename))
                 .header("x-api-key", &state.nimbus_key)
                 .multipart(form)
                 .send()

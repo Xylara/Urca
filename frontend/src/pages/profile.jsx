@@ -3,13 +3,16 @@ import { jwtDecode } from 'jwt-decode';
 import Sidebar from '../parts/sidebar';
 import AccountSidebar from '../parts/AccountSidebar';
 
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:7000";
+const PULSE_API_KEY = import.meta.env.VITE_PULSE_API_KEY;
+
 const Profile = () => {
   const [uploading, setUploading] = useState(false);
   const [user, setUser] = useState({ id: null, username: '' });
-  const [pfpBlob, setPfpBlob] = useState(null);
-  
+  const [pfpUrl, setPfpUrl] = useState(null);
+  const [cacheBust, setCacheBust] = useState(Date.now());
+
   const token = localStorage.getItem("token");
-  const PULSE_API_KEY = import.meta.env.VITE_PULSE_API_KEY;
 
   useEffect(() => {
     if (token) {
@@ -17,34 +20,15 @@ const Profile = () => {
         const decoded = jwtDecode(token);
         const userData = {
           id: decoded.uuid || decoded.sub,
-          username: decoded.username || ''
+          username: decoded.username || decoded.sub || ''
         };
         setUser(userData);
-        fetchPfp(userData.username);
+        setPfpUrl(`${API_BASE}/api/user/${userData.username}/pfp`);
       } catch (e) {
         console.error(e);
       }
     }
   }, [token]);
-
-  const fetchPfp = async (username) => {
-    if (!username) return;
-    try {
-      const response = await fetch(`https://7000.hyghj.eu.org/api/user/${username}/pfp`, {
-        method: "GET",
-        headers: {
-          "x-api-key": PULSE_API_KEY
-        }
-      });
-      
-      if (response.ok) {
-        const blob = await response.blob();
-        setPfpBlob(URL.createObjectURL(blob));
-      }
-    } catch (err) {
-      console.error("PFP fetch error", err);
-    }
-  };
 
   const handleFileChange = async (event) => {
     const file = event.target.files[0];
@@ -55,7 +39,7 @@ const Profile = () => {
     formData.append("file", file);
 
     try {
-      const response = await fetch(`https://7000.hyghj.eu.org/api/user/${user.username}/pfp/upload`, {
+      const response = await fetch(`${API_BASE}/api/user/${user.username}/pfp/upload`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -65,7 +49,7 @@ const Profile = () => {
       });
 
       if (response.ok) {
-        window.location.reload();
+        setCacheBust(Date.now());
       } else {
         alert("Upload failed");
       }
@@ -89,9 +73,9 @@ const Profile = () => {
         <section className="space-y-12">
           <div className="flex items-start gap-8 pb-10 border-b border-zinc-100">
             <div className="relative w-32 h-32 rounded-2xl overflow-hidden border border-zinc-200 shadow-sm bg-zinc-50">
-              <img 
-                src={pfpBlob || "https://s3.tebi.io/main/default.png"} 
-                alt="Profile" 
+              <img
+                src={pfpUrl ? `${pfpUrl}?t=${cacheBust}` : "https://s3.tebi.io/main/default.png"}
+                alt="Profile"
                 className={`w-full h-full object-cover ${uploading ? 'opacity-40' : 'opacity-100'}`}
               />
               {uploading && (
@@ -100,18 +84,18 @@ const Profile = () => {
                 </div>
               )}
             </div>
-            
+
             <div className="flex-1">
               <h3 className="text-sm font-semibold uppercase text-zinc-400">Profile Picture</h3>
               <div className="flex gap-3 mt-4">
                 <label className="px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-lg cursor-pointer hover:bg-zinc-800">
                   {uploading ? 'Uploading...' : 'Upload New Image'}
-                  <input 
-                    type="file" 
-                    className="hidden" 
-                    accept="image/*" 
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
                     disabled={uploading}
-                    onChange={handleFileChange} 
+                    onChange={handleFileChange}
                   />
                 </label>
               </div>
