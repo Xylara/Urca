@@ -112,11 +112,14 @@ pub async fn get_user_pfp(Path(user_id): Path<String>, State(state): State<Arc<A
     }
 }
 
-async fn upload_pfp(Path(user_id): Path<String>, State(state): State<Arc<AppState>>, mut multipart: Multipart) -> Result<StatusCode, StatusCode> {
+async fn upload_pfp(
+    Path(user_id): Path<String>,
+    State(state): State<Arc<AppState>>,
+    mut multipart: Multipart,
+) -> Result<StatusCode, StatusCode> {
     while let Ok(Some(field)) = multipart.next_field().await {
         if field.name().as_deref() == Some("file") {
             let data = field.bytes().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
             let filename = format!("{}.png", user_id);
 
             let part = reqwest::multipart::Part::bytes(data.to_vec())
@@ -140,6 +143,17 @@ async fn upload_pfp(Path(user_id): Path<String>, State(state): State<Arc<AppStat
 
             let json: serde_json::Value = response.json().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
             let cdn_url = json["cdn_url"].as_str().ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+
+            let cf_zone = std::env::var("CF_ZONE_ID").unwrap_or_default();
+            let cf_token = std::env::var("CF_API_TOKEN").unwrap_or_default();
+            let purge_url = format!("{}/pfp/{}.png", std::env::var("CDN_URL").unwrap_or_default(), user_id);
+
+            let _ = state.http
+                .post(format!("https://api.cloudflare.com/client/v4/zones/{}/purge_cache", cf_zone))
+                .header("Authorization", format!("Bearer {}", cf_token))
+                .json(&serde_json::json!({ "files": [purge_url] }))
+                .send()
+                .await;
 
             sqlx::query::<sqlx::Postgres>("UPDATE users SET pfp_url = $1 WHERE id::text = $2 OR username = $2")
                 .bind(cdn_url)
