@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import ServerSidebar from '../parts/ServerSidebar';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -10,10 +11,8 @@ const Dashboard = () => {
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>Dashboard</h1>
-      <p>Authentication successful.</p>
-      <button onClick={handleLogout}>Logout</button>
+    <div className="flex min-h-screen bg-white">
+      <ServerSidebar />
     </div>
   );
 };
