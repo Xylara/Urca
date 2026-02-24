@@ -42,70 +42,69 @@ const AuthPage = () => {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-            <div className="w-full max-w-[350px] rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-                
+        <div className="flex min-h-screen items-center justify-center bg-white p-4 text-black">
+            <div className="w-full max-w-[260px]">
                 <div className="flex flex-col gap-4">
                     {step === 1 ? (
-                        <div className="flex flex-col gap-2">
-                            <label className="text-sm font-semibold text-gray-700">Username</label>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[11px] font-black uppercase tracking-tight">Username</label>
                             <input 
                                 autoFocus
                                 type="text" 
                                 value={formData.username}
-                                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-base outline-none focus:border-black transition-colors"
-                                placeholder="Type it here..."
+                                className="w-full rounded-none border-[1.5px] border-black bg-white px-3 py-2 text-sm outline-none focus:bg-gray-50 transition-colors"
                                 onKeyDown={onKeyDown}
                                 onChange={(e) => setFormData({...formData, username: e.target.value})}
                             />
                         </div>
                     ) : (
-                        <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-right-2 duration-300">
-                            <label className="text-sm font-semibold text-gray-700">Password</label>
+                        <div className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-right-2 duration-200">
+                            <label className="text-[11px] font-black uppercase tracking-tight">Password</label>
                             <input 
                                 autoFocus
                                 type="password" 
                                 value={formData.password}
-                                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-base outline-none focus:border-black transition-colors"
-                                placeholder="Keep it secret..."
+                                className="w-full rounded-none border-[1.5px] border-black bg-white px-3 py-2 text-sm outline-none focus:bg-gray-50 transition-colors"
                                 onKeyDown={onKeyDown}
                                 onChange={(e) => setFormData({...formData, password: e.target.value})}
                             />
                         </div>
                     )}
 
-                    {error && <p className="text-xs font-medium text-red-500">{error}</p>}
+                    {error && <p className="text-[10px] font-bold uppercase text-red-600 tracking-tighter">{error}</p>}
                     
-                    <div className="mt-4 flex items-center justify-between">
-                        <button 
-                            onClick={() => {
-                                setIsLogin(!isLogin);
-                                setStep(1);
-                                setFormData({ username: '', password: '' });
-                                setError('');
-                            }} 
-                            className="text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                            {isLogin ? "Register" : "Login"}
-                        </button>
-                        
+                    <div className="flex flex-col gap-3">
                         <button 
                             onClick={step === 1 ? handleNext : handleSubmit}
-                            className="rounded-lg bg-black px-5 py-2 text-xs font-bold text-white hover:bg-gray-800 active:scale-95 transition-all"
+                            className="w-full rounded-none bg-black py-2.5 text-[11px] font-black uppercase tracking-[0.2em] text-white active:bg-gray-800 transition-all"
                         >
                             {step === 1 ? "Next" : (isLogin ? "Login" : "Register")}
                         </button>
+                        
+                        <div className="flex items-center justify-between px-0.5">
+                            <button 
+                                onClick={() => {
+                                    setIsLogin(!isLogin);
+                                    setStep(1);
+                                    setFormData({ username: '', password: '' });
+                                    setError('');
+                                }} 
+                                className="text-[10px] font-bold uppercase text-gray-400 hover:text-black transition-colors"
+                            >
+                                {isLogin ? "Sign Up" : "Sign In"}
+                            </button>
+
+                            {step === 2 && (
+                                <button 
+                                    onClick={() => setStep(1)} 
+                                    className="text-[10px] font-bold uppercase text-gray-400 hover:text-black transition-colors"
+                                >
+                                    ← Back
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
-
-                {step === 2 && (
-                    <button 
-                        onClick={() => setStep(1)} 
-                        className="mt-6 block w-full text-center text-[10px] font-bold uppercase tracking-widest text-gray-300 hover:text-gray-500"
-                    >
-                        ← Back
-                    </button>
-                )}
             </div>
         </div>
     );
