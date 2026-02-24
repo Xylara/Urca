@@ -15,13 +15,13 @@ const SALT_ROUNDS = 12;
 
 if (!fs.existsSync(CONFIG_PATH)) {
     const defaultConfig = {
-        "JWT_SECRET": "change_this_to_a_long_random_string_123",
+        "JWT_SECRET": "changeme",
         "postgres": {
             "DB_TYPE": "postgres",
-            "DB_HOST": "ep-tiny-hall-ah46mkwn-pooler.c-3.us-east-1.aws.neon.tech",
-            "DB_NAME": "neondb",
-            "DB_USER": "neondb_owner",
-            "DB_PASS": "npg_v3Tnj1UwutGm",
+            "DB_HOST": "changeme",
+            "DB_NAME": "changeme",
+            "DB_USER": "changeme",
+            "DB_PASS": "changeme",
             "DB_PORT": 5432
         }
     };
@@ -55,6 +55,7 @@ const User = sequelize.define('User', {
 
 try {
     await sequelize.authenticate();
+    console.log("\x1b[32m%s\x1b[0m", "[URCA] Connected to database");
     await sequelize.sync();
 } catch (error) {
     console.error("\x1b[31m%s\x1b[0m", "[URCA] Unable to connect to database.");
@@ -64,12 +65,39 @@ try {
 const app = express();
 app.use(express.json());
 
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.sendStatus(401);
+
+    jwt.verify(token, config.JWT_SECRET, (err, user) => {
+        if (err) return res.sendStatus(403);
+        req.user = user;
+        next();
+    });
+};
+
+app.get('/api/user/:uuid', authenticateToken, async (req, res) => {
+    try {
+        const user = await User.findOne({ 
+            where: { uuid: req.params.uuid },
+            attributes: ['username']
+        });
+        if (user) {
+            res.json({ username: user.username });
+        } else {
+            res.status(404).json({ error: "User not found" });
+        }
+    } catch (e) {
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
 app.post('/api/register', async (req, res) => {
     try {
         const { username, password } = req.body;
         const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
         const user = await User.create({ username, password: hashedPassword });
-        
         const token = jwt.sign({ uuid: user.uuid }, config.JWT_SECRET, { expiresIn: '1h' });
         res.status(201).json({ token });
     } catch (e) {
@@ -80,7 +108,6 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     const user = await User.findOne({ where: { username } });
-    
     if (user && await bcrypt.compare(password, user.password)) {
         const token = jwt.sign({ uuid: user.uuid }, config.JWT_SECRET, { expiresIn: '1h' });
         return res.json({ token });
@@ -90,12 +117,7 @@ app.post('/api/login', async (req, res) => {
 
 app.listen(3001, () => {
     console.log("\x1b[32m%s\x1b[0m", "[URCA] Started successfully");
-
-    const vite = spawn('npx', ['vite'], { 
-        stdio: 'inherit', 
-        shell: true 
-    });
-
+    const vite = spawn('npx', ['vite'], { stdio: 'inherit', shell: true });
     vite.on('error', (err) => {
         console.error("\x1b[31m%s\x1b[0m", "[URCA] Failed to start frontend: " + err.message);
     });
