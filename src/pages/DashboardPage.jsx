@@ -1,52 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import ServerSidebar from '../parts/ServerSidebar';
 import DashboardSidebar from '../parts/DashboardSidebar';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        navigate('/');
-        return;
-      }
-
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        
-        const res = await fetch(`/api/user/${payload.uuid}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        const data = await res.json();
-        
-        if (res.ok) {
-          setUsername(data.username);
-        } else {
-          throw new Error();
-        }
-      } catch (e) {
-        localStorage.removeItem('token');
-        navigate('/');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUser();
-  }, [navigate]);
-
-  if (loading) return <div className="min-h-screen bg-white" />;
 
   return (
     <div className="flex min-h-screen bg-white">
       <ServerSidebar />
-      <DashboardSidebar username={username} />
+      <DashboardSidebar />
 
       <main className="ml-[312px] flex-1 flex flex-col">
         <header className="flex h-12 items-center justify-between border-b border-gray-100 px-6">
@@ -58,7 +21,8 @@ const Dashboard = () => {
             Logout
           </button>
         </header>
-        <div className="p-8"></div>
+        <div className="p-8">
+        </div>
       </main>
     </div>
   );

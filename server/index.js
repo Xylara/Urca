@@ -6,22 +6,30 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
+import axios from 'axios';
+import FormData from 'form-data';
+import multer from 'multer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 const SALT_ROUNDS = 12;
+const upload = multer({ dest: 'temp/' });
 
 if (!fs.existsSync(CONFIG_PATH)) {
     const defaultConfig = {
-        "JWT_SECRET": "changeme",
-        "postgres": {
+        "JWT_SECRET": "change_this_to_a_long_random_string_123",
+        "Nimbus": {
+            "API_KEY": "K0HSpcaKImNvoOp",
+            "CDN_URL": "http://localhost:4000"
+        },
+        "Database": {
             "DB_TYPE": "postgres",
-            "DB_HOST": "changeme",
-            "DB_NAME": "changeme",
-            "DB_USER": "changeme",
-            "DB_PASS": "changeme",
+            "DB_HOST": "ep-tiny-hall-ah46mkwn-pooler.c-3.us-east-1.aws.neon.tech",
+            "DB_NAME": "neondb",
+            "DB_USER": "neondb_owner",
+            "DB_PASS": "npg_v3Tnj1UwutGm",
             "DB_PORT": 5432
         }
     };
@@ -31,7 +39,7 @@ if (!fs.existsSync(CONFIG_PATH)) {
 }
 
 const config = JSON.parse(fs.readFileSync(CONFIG_PATH));
-const db = config.postgres;
+const db = config.Database;
 
 const sequelize = new Sequelize(db.DB_NAME, db.DB_USER, db.DB_PASS, {
     host: db.DB_HOST,
@@ -50,7 +58,11 @@ const User = sequelize.define('User', {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     uuid: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4 },
     username: { type: DataTypes.STRING, unique: true, allowNull: false },
-    password: { type: DataTypes.STRING, allowNull: false }
+    password: { type: DataTypes.STRING, allowNull: false },
+    pfp: { 
+        type: DataTypes.STRING, 
+        defaultValue: `${config.Nimbus.CDN_URL.replace(/\/$/, '')}/pfp/default.png` 
+    }
 });
 
 try {
@@ -81,15 +93,38 @@ app.get('/api/user/:uuid', authenticateToken, async (req, res) => {
     try {
         const user = await User.findOne({ 
             where: { uuid: req.params.uuid },
-            attributes: ['username']
+            attributes: ['username', 'pfp']
         });
         if (user) {
-            res.json({ username: user.username });
+            res.json(user);
         } else {
             res.status(404).json({ error: "User not found" });
         }
     } catch (e) {
         res.status(500).json({ error: "Server error" });
+    }
+});
+
+app.post('/api/user/upload-pfp', authenticateToken, upload.single('image'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: "No image provided" });
+        const formData = new FormData();
+        formData.append('file', fs.createReadStream(req.file.path));
+        const response = await axios.post('http://localhost:3000/upload?dir=pfp', formData, {
+            headers: {
+                ...formData.getHeaders(),
+                'x-api-key': config.Nimbus.API_KEY
+            }
+        });
+        await User.update(
+            { pfp: response.data.cdn_url },
+            { where: { uuid: req.user.uuid } }
+        );
+        fs.unlinkSync(req.file.path);
+        res.json({ url: response.data.cdn_url });
+    } catch (e) {
+        if (req.file) fs.unlinkSync(req.file.path);
+        res.status(500).json({ error: "Upload failed" });
     }
 });
 

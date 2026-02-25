@@ -99,7 +99,7 @@ const AuthPage = () => {
                                     onClick={() => setStep(1)} 
                                     className="text-[10px] font-bold uppercase text-gray-400 hover:text-black transition-colors"
                                 >
-                                    ← Back
+                                    Back
                                 </button>
                             )}
                         </div>
