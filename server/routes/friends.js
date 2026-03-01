@@ -7,12 +7,14 @@ const router = express.Router();
 
 router.post('/add', async (req, res) => {
     try {
-        const { friendUuid, nickname } = req.body;
+        const { username, nickname } = req.body;
         const userUuid = req.user.uuid;
-        if (userUuid === friendUuid) return res.status(400).json({ error: "Self-friending restricted" });
-        
-        const targetUser = await User.findOne({ where: { uuid: friendUuid } });
+
+        const targetUser = await User.findOne({ where: { username } });
         if (!targetUser) return res.status(404).json({ error: "User not found" });
+
+        const friendUuid = targetUser.uuid;
+        if (userUuid === friendUuid) return res.status(400).json({ error: "Self-friending restricted" });
 
         const friendEntry = await Friend.create({
             userUuid,
