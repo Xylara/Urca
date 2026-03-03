@@ -3,6 +3,7 @@ import ServerSidebar from '../parts/ServerSidebar';
 import DashboardSidebar from '../parts/DashboardSidebar';
 import FriendList from '../parts/FriendList';
 import AddFriendUI from '../parts/AddFriendUI';
+import PendingRequests from '../parts/PendingRequests';
 
 const Dashboard = () => {
     const [tab, setTab] = useState('all');
@@ -26,6 +27,12 @@ const Dashboard = () => {
                             All
                         </button>
                         <button 
+                            onClick={() => setTab('pending')}
+                            className={`px-3 py-1 rounded-md transition ${tab === 'pending' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50'}`}
+                        >
+                            Pending
+                        </button>
+                        <button 
                             onClick={() => setTab('add')}
                             className={`px-3 py-1 rounded-md transition ${tab === 'add' ? 'bg-green-600 text-white' : 'text-green-600 hover:bg-green-50'}`}
                         >
@@ -36,7 +43,9 @@ const Dashboard = () => {
 
                 <div className="flex-1 overflow-y-auto bg-white">
                     <div className="max-w-5xl px-8 py-6">
-                        {tab === 'all' ? <FriendList /> : <AddFriendUI />}
+                        {tab === 'all' && <FriendList />}
+                        {tab === 'pending' && <PendingRequests />}
+                        {tab === 'add' && <AddFriendUI />}
                     </div>
                 </div>
             </main>

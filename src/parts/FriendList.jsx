@@ -5,22 +5,36 @@ const FriendList = () => {
     const [friends, setFriends] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    const fetchFriends = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get('/api/friends', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setFriends(res.data);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchFriends = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                const res = await axios.get('/api/friends', {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setFriends(res.data);
-            } catch (err) {
-                console.error("Fetch error:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchFriends();
     }, []);
+
+    const handleUnfriend = async (friendId) => {
+        const previousFriends = [...friends];
+        setFriends(friends.filter(f => f.id !== friendId));
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`/api/friends/remove/${friendId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+        } catch (err) {
+            setFriends(previousFriends);
+        }
+    };
 
     if (loading) return <div className="p-4 text-gray-400 italic">Loading...</div>;
 
@@ -38,15 +52,23 @@ const FriendList = () => {
                                 <img src={f.FriendDetails?.pfp} className="w-10 h-10 rounded-full border border-gray-200" alt="" />
                                 <div>
                                     <div className="text-sm font-bold text-gray-900">{f.nickname}</div>
-                                    <div className="text-xs text-gray-500">Online</div>
+                                    <div className="text-xs text-green-500">Online</div>
                                 </div>
                             </div>
+                            <button 
+                                onClick={() => handleUnfriend(f.id)}
+                                className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 rounded-md transition-all"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
                         </div>
                     ))}
                 </div>
             ) : (
                 <div className="flex flex-col items-center justify-center mt-32 text-center">
-                    <p className="text-gray-400 text-sm font-medium">No friends here yet. Try adding some!</p>
+                    <p className="text-gray-400 text-sm font-medium">No friends here yet.</p>
                 </div>
             )}
         </div>
