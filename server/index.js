@@ -57,8 +57,8 @@ process.on('unhandledRejection', (reason) => {
     logError(reason);
 });
 
-app.listen(3001, () => {
-    console.log("\x1b[32m%s\x1b[0m", "[URCA] Pulse Server started on port 3001");
+app.listen(7002, () => {
+    console.log("\x1b[32m%s\x1b[0m", "[URCA] Dev server started on port 7001");
     
     const vite = spawn('npx', ['vite', '--force'], { 
         stdio: 'inherit', 
